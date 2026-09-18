@@ -176,6 +176,13 @@
     padding:8px 13px;border-radius:20px;font-size:13px;cursor:pointer;
   }
   .name-pill.selected{background:var(--done-dim);border-color:var(--done);color:var(--done);}
+  .name-pill.urgent-on{background:#3a1d18;border-color:var(--danger);color:var(--danger);}
+  .urgent-badge{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.03em;
+    color:var(--danger);background:#3a1d18;border:1px solid var(--danger);
+    padding:2px 8px;border-radius:10px;margin-bottom:6px;
+  }
+  .job.urgent{border-left-color:var(--danger);}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
   .modal-actions button{
     padding:9px 16px;border-radius:4px;font-size:13px;font-weight:600;
@@ -231,6 +238,10 @@
     <input type="text" id="postTitle" placeholder="e.g. Iron farm not working">
     <label>Details</label>
     <textarea id="postDesc" placeholder="What's wrong? Where is it?"></textarea>
+    <label>Priority</label>
+    <div class="name-grid">
+      <div class="name-pill" id="urgentToggle">🔥 Urgent</div>
+    </div>
     <div class="modal-actions">
       <button id="postCancel">Cancel</button>
       <button class="primary" id="postSubmit" disabled>Post job</button>
@@ -266,6 +277,12 @@ let jobs = [];
 let pendingAction = null; // {type: 'claim'|'assign'|'done', jobId}
 let selectedPostName = null;
 let selectedActionName = null;
+let selectedUrgent = false;
+
+document.getElementById('urgentToggle').addEventListener('click', () => {
+  selectedUrgent = !selectedUrgent;
+  document.getElementById('urgentToggle').classList.toggle('urgent-on', selectedUrgent);
+});
 
 // ---------- rendering ----------
 function esc(s){
@@ -294,8 +311,10 @@ function timeAgo(isoString){
 }
 
 function render(){
-  const open = jobs.filter(j => j.status === 'open');
-  const assigned = jobs.filter(j => j.status === 'assigned');
+  const byUrgentThenTime = (a, b) => (b.is_urgent - a.is_urgent) || (new Date(a.created_at) - new Date(b.created_at));
+
+  const open = jobs.filter(j => j.status === 'open').sort(byUrgentThenTime);
+  const assigned = jobs.filter(j => j.status === 'assigned').sort(byUrgentThenTime);
   const done = jobs.filter(j => j.status === 'done').sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
   document.getElementById('countOpen').textContent = open.length;
@@ -346,7 +365,8 @@ function renderList(containerId, list, actionsHtml){
         </div>`
       : '';
     return `
-      <div class="job ${j.status}">
+      <div class="job ${j.status}${j.is_urgent ? ' urgent' : ''}">
+        ${j.is_urgent ? `<span class="urgent-badge">🔥 URGENT</span><br>` : ''}
         <p class="job-title">${esc(j.title)}</p>
         ${j.description ? `<p class="job-desc">${esc(j.description)}</p>` : ''}
         <p class="job-meta">${meta}<br>${timeLabel}</p>
@@ -396,6 +416,8 @@ document.getElementById('postTitle').addEventListener('input', updatePostSubmit)
 
 document.getElementById('openPostModal').addEventListener('click', () => {
   selectedPostName = null;
+  selectedUrgent = false;
+  document.getElementById('urgentToggle').classList.remove('urgent-on');
   document.getElementById('postTitle').value = '';
   document.getElementById('postDesc').value = '';
   [...postNameGrid.children].forEach(c => c.classList.remove('selected'));
@@ -411,7 +433,7 @@ postSubmit.addEventListener('click', async () => {
   postSubmit.disabled = true;
   postSubmit.textContent = 'Posting…';
   const { error } = await sb.from('jobs').insert({
-    title, description, poster: selectedPostName, status: 'open'
+    title, description, poster: selectedPostName, status: 'open', is_urgent: selectedUrgent
   });
   postSubmit.textContent = 'Post job';
   if(error){ alert('Could not post job: ' + error.message); postSubmit.disabled = false; return; }
