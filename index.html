@@ -334,6 +334,12 @@ function renderList(containerId, list, actionsHtml){
     let meta = `Posted by <b>${esc(j.poster)}</b>`;
     if(j.status === 'assigned') meta += ` · Assigned to <b>${esc(j.assignee)}</b>`;
     if(j.status === 'done') meta += ` · Done by <b>${esc(j.done_by)}</b>`;
+
+    let timeLabel = '';
+    if(j.status === 'open') timeLabel = `Posted ${timeAgo(j.created_at)}`;
+    if(j.status === 'assigned') timeLabel = `Assigned ${timeAgo(j.assigned_at || j.created_at)}`;
+    if(j.status === 'done') timeLabel = `Done ${timeAgo(j.done_at || j.created_at)}`;
+
     const photos = (j.photo_urls && j.photo_urls.length > 0)
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
           ${j.photo_urls.map(url => `<img src="${esc(url)}" alt="Proof of fix" style="width:84px;height:84px;object-fit:cover;border-radius:4px;border:1px solid var(--border);cursor:pointer;" onclick="window.open('${esc(url)}','_blank')">`).join('')}
@@ -343,7 +349,7 @@ function renderList(containerId, list, actionsHtml){
       <div class="job ${j.status}">
         <p class="job-title">${esc(j.title)}</p>
         ${j.description ? `<p class="job-desc">${esc(j.description)}</p>` : ''}
-        <p class="job-meta">${meta}</p>
+        <p class="job-meta">${meta}<br>${timeLabel}</p>
         ${photos}
         ${actionsHtml(j)}
       </div>`;
@@ -488,9 +494,9 @@ nameSubmit.addEventListener('click', async () => {
 
   try {
     let update = {};
-    if(type === 'claim') update = { status: 'assigned', assignee: selectedActionName };
-    if(type === 'assign') update = { status: 'assigned', assignee: selectedActionName };
-    if(type === 'done') update = { status: 'done', done_by: selectedActionName };
+    if(type === 'claim') update = { status: 'assigned', assignee: selectedActionName, assigned_at: new Date().toISOString() };
+    if(type === 'assign') update = { status: 'assigned', assignee: selectedActionName, assigned_at: new Date().toISOString() };
+    if(type === 'done') update = { status: 'done', done_by: selectedActionName, done_at: new Date().toISOString() };
 
     if(type === 'done'){
       const files = [...document.getElementById('donePhotoInput').files];
@@ -539,7 +545,7 @@ nameSubmit.addEventListener('click', async () => {
 
 async function reopenJob(id){
   const { error } = await sb.from('jobs').update({
-    status: 'open', assignee: null, done_by: null, photo_urls: null
+    status: 'open', assignee: null, done_by: null, photo_urls: null, assigned_at: null, done_at: null
   }).eq('id', id);
   if(error){ alert('Could not reopen: ' + error.message); return; }
   loadJobs();
