@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Board — therealgonners6767</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#12160f;
+    --bg-panel:#191d13;
+    --bg-raised:#1f2417;
+    --text:#e9e6d6;
+    --muted:#8f9482;
+    --border:#2d331f;
+    --open:#e0a640;
+    --open-dim:#4a3a1e;
+    --assigned:#5b8fd1;
+    --assigned-dim:#243449;
+    --done:#6fae52;
+    --done-dim:#25341c;
+    --danger:#c1554a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top, #1a1f13 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+    line-height:1.5;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px;}
+
+  header{margin-bottom:36px;}
+  .server-tag{
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.04em;
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Press Start 2P',monospace;
+    font-size:20px;
+    line-height:1.6;
+    margin:0 0 6px;
+    color:var(--text);
+    text-shadow:2px 2px 0 #000;
+  }
+  .tagline{color:var(--muted);font-size:14px;margin:0;}
+
+  .share-row{
+    display:flex;gap:8px;align-items:center;
+    margin-top:18px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    padding:10px 12px;
+    border-radius:4px;
+  }
+  .share-row input{
+    flex:1;background:transparent;border:none;color:var(--muted);
+    font-size:12px;font-family:monospace;outline:none;
+  }
+  .share-row button{
+    background:var(--bg-raised);border:1px solid var(--border);color:var(--text);
+    font-size:12px;padding:6px 10px;border-radius:3px;cursor:pointer;
+  }
+  .share-row button:hover{border-color:var(--done);}
+
+  .post-btn{
+    display:block;width:100%;
+    background:var(--done-dim);
+    color:var(--done);
+    border:1px solid var(--done);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    padding:14px;
+    border-radius:4px;
+    cursor:pointer;
+    margin:24px 0 36px;
+    transition:background .15s;
+  }
+  .post-btn:hover{background:#2c4020;}
+
+  section.col{margin-bottom:36px;}
+  .col-head{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:12px;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .dot.open{background:var(--open);}
+  .dot.assigned{background:var(--assigned);}
+  .dot.done{background:var(--done);}
+  .col-head h2{
+    font-size:13px;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--muted);font-weight:600;margin:0;
+  }
+  .col-count{
+    font-size:12px;color:var(--muted);
+    background:var(--bg-panel);border:1px solid var(--border);
+    padding:1px 7px;border-radius:10px;
+  }
+
+  .job{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-left:3px solid var(--muted);
+    border-radius:4px;
+    padding:14px 16px;
+    margin-bottom:10px;
+  }
+  .job.open{border-left-color:var(--open);}
+  .job.assigned{border-left-color:var(--assigned);}
+  .job.done{border-left-color:var(--done);opacity:0.72;}
+
+  .job-title{font-size:15px;font-weight:600;margin:0 0 4px;}
+  .job-desc{font-size:13.5px;color:#c7c4b4;margin:0 0 10px;white-space:pre-wrap;}
+  .job-meta{font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .job-meta b{color:var(--text);font-weight:600;}
+
+  .job-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .job-actions button{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;font-weight:600;
+    padding:7px 12px;border-radius:3px;
+    cursor:pointer;border:1px solid;
+    background:transparent;
+  }
+  .btn-claim{color:var(--assigned);border-color:var(--assigned);}
+  .btn-claim:hover{background:var(--assigned-dim);}
+  .btn-assign{color:var(--open);border-color:var(--open);}
+  .btn-assign:hover{background:var(--open-dim);}
+  .btn-done{color:var(--done);border-color:var(--done);}
+  .btn-done:hover{background:var(--done-dim);}
+  .btn-reopen{color:var(--muted);border-color:var(--border);}
+  .btn-reopen:hover{border-color:var(--muted);}
+
+  .empty{
+    font-size:13px;color:var(--muted);
+    border:1px dashed var(--border);
+    border-radius:4px;
+    padding:16px;text-align:center;
+  }
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(8,10,6,0.75);
+    display:none;align-items:center;justify-content:center;
+    padding:20px;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--bg-raised);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:22px;
+    width:100%;max-width:380px;
+  }
+  .modal h3{margin:0 0 14px;font-size:15px;font-weight:700;}
+  .modal label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px;}
+  .modal input[type=text], .modal textarea{
+    width:100%;background:var(--bg-panel);border:1px solid var(--border);
+    color:var(--text);padding:9px 10px;border-radius:4px;
+    font-family:inherit;font-size:14px;outline:none;
+  }
+  .modal input[type=text]:focus, .modal textarea:focus{border-color:var(--done);}
+  .modal textarea{resize:vertical;min-height:70px;}
+  .name-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .name-pill{
+    background:var(--bg-panel);border:1px solid var(--border);color:var(--text);
+    padding:8px 13px;border-radius:20px;font-size:13px;cursor:pointer;
+  }
+  .name-pill.selected{background:var(--done-dim);border-color:var(--done);color:var(--done);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+  .modal-actions button{
+    padding:9px 16px;border-radius:4px;font-size:13px;font-weight:600;
+    cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);
+  }
+  .modal-actions .primary{background:var(--done-dim);border-color:var(--done);color:var(--done);}
+  .modal-actions .primary:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .setup{
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;
+    padding:20px;font-size:13px;color:var(--muted);
+  }
+  .setup code{background:var(--bg-raised);padding:2px 5px;border-radius:3px;color:var(--open);}
+
+  @media (prefers-reduced-motion:no-preference){
+    .job{transition:opacity .2s, transform .2s;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="server-tag">therealgonners6767</div>
+    <h1>Job Board</h1>
+    <p class="tagline">See something broken? Post it. See a job? Take it.</p>
+  </header>
+
+  <button class="post-btn" id="openPostModal">+ Post a job</button>
+
+  <section class="col">
+    <div class="col-head"><span class="dot open"></span><h2>Open</h2><span class="col-count" id="countOpen">0</span></div>
+    <div id="listOpen"></div>
+  </section>
+
+  <section class="col">
+    <div class="col-head"><span class="dot assigned"></span><h2>Assigned</h2><span class="col-count" id="countAssigned">0</span></div>
+    <div id="listAssigned"></div>
+  </section>
+
+  <section class="col">
+    <div class="col-head"><span class="dot done"></span><h2>Done</h2><span class="col-count" id="countDone">0</span></div>
+    <div id="listDone"></div>
+  </section>
+</div>
+
+<!-- Post modal -->
+<div class="overlay" id="postOverlay">
+  <div class="modal">
+    <h3>Post a job</h3>
+    <label>Your name</label>
+    <div class="name-grid" id="postNameGrid"></div>
+    <label>Title</label>
+    <input type="text" id="postTitle" placeholder="e.g. Iron farm not working">
+    <label>Details</label>
+    <textarea id="postDesc" placeholder="What's wrong? Where is it?"></textarea>
+    <div class="modal-actions">
+      <button id="postCancel">Cancel</button>
+      <button class="primary" id="postSubmit" disabled>Post job</button>
+    </div>
+  </div>
+</div>
+
+<!-- Name-picker modal (claim / assign / done) -->
+<div class="overlay" id="nameOverlay">
+  <div class="modal">
+    <h3 id="nameModalTitle">Pick your name</h3>
+    <div class="name-grid" id="actionNameGrid"></div>
+    <div id="photoField" style="display:none;">
+      <label>Photos (optional)</label>
+      <input type="file" id="donePhotoInput" accept="image/*" multiple>
+      <div id="photoPreviewWrap" style="display:none;margin-top:10px;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="nameCancel">Cancel</button>
+      <button class="primary" id="nameSubmit" disabled>Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://otmadupzimvattspyqpc.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_uypC37hziGWN43Jyhccw2w_VPuLl8Og";
+const PLAYERS = ["Sreepathi","Sama","Nandu","Haari","Aabid"];
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let jobs = [];
+let pendingAction = null; // {type: 'claim'|'assign'|'done', jobId}
+let selectedPostName = null;
+let selectedActionName = null;
+
+// ---------- rendering ----------
+function esc(s){
+  const d = document.createElement('div');
+  d.textContent = s ?? '';
+  return d.innerHTML;
+}
+
+function timeAgo(isoString){
+  if(!isoString) return '';
+  const then = new Date(isoString).getTime();
+  const now = Date.now();
+  const secs = Math.max(0, Math.floor((now - then) / 1000));
+
+  if(secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if(mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if(hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if(days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  const months = Math.floor(days / 30);
+  if(months < 12) return `${months} month${months === 1 ? '' : 's'} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years === 1 ? '' : 's'} ago`;
+}
+
+function render(){
+  const open = jobs.filter(j => j.status === 'open');
+  const assigned = jobs.filter(j => j.status === 'assigned');
+  const done = jobs.filter(j => j.status === 'done').sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  document.getElementById('countOpen').textContent = open.length;
+  document.getElementById('countAssigned').textContent = assigned.length;
+  document.getElementById('countDone').textContent = done.length;
+
+  renderList('listOpen', open, jobEl => `
+    <div class="job-actions">
+      <button class="btn-claim" data-action="claim" data-id="${jobEl.id}">Claim</button>
+      <button class="btn-assign" data-action="assign" data-id="${jobEl.id}">Assign to…</button>
+    </div>`);
+
+  renderList('listAssigned', assigned, jobEl => `
+    <div class="job-actions">
+      <button class="btn-done" data-action="done" data-id="${jobEl.id}">Mark done</button>
+      <button class="btn-assign" data-action="assign" data-id="${jobEl.id}">Reassign</button>
+    </div>`);
+
+  renderList('listDone', done, jobEl => `
+    <div class="job-actions">
+      <button class="btn-reopen" data-action="reopen" data-id="${jobEl.id}">Reopen</button>
+    </div>`);
+
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', onActionClick);
+  });
+}
+
+function renderList(containerId, list, actionsHtml){
+  const el = document.getElementById(containerId);
+  if(list.length === 0){
+    el.innerHTML = `<div class="empty">Nothing here</div>`;
+    return;
+  }
+  el.innerHTML = list.map(j => {
+    let meta = `Posted by <b>${esc(j.poster)}</b>`;
+    if(j.status === 'assigned') meta += ` · Assigned to <b>${esc(j.assignee)}</b>`;
+    if(j.status === 'done') meta += ` · Done by <b>${esc(j.done_by)}</b>`;
+    const photos = (j.photo_urls && j.photo_urls.length > 0)
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          ${j.photo_urls.map(url => `<img src="${esc(url)}" alt="Proof of fix" style="width:84px;height:84px;object-fit:cover;border-radius:4px;border:1px solid var(--border);cursor:pointer;" onclick="window.open('${esc(url)}','_blank')">`).join('')}
+        </div>`
+      : '';
+    return `
+      <div class="job ${j.status}">
+        <p class="job-title">${esc(j.title)}</p>
+        ${j.description ? `<p class="job-desc">${esc(j.description)}</p>` : ''}
+        <p class="job-meta">${meta}</p>
+        ${photos}
+        ${actionsHtml(j)}
+      </div>`;
+  }).join('');
+}
+
+// ---------- data ----------
+async function loadJobs(){
+  const { data, error } = await sb.from('jobs').select('*').order('created_at', { ascending: true });
+  if(error){ console.error(error); return; }
+  jobs = data;
+  render();
+}
+
+sb.channel('jobs-realtime')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, loadJobs)
+  .subscribe();
+
+loadJobs();
+
+// ---------- post modal ----------
+const postOverlay = document.getElementById('postOverlay');
+const postNameGrid = document.getElementById('postNameGrid');
+const postSubmit = document.getElementById('postSubmit');
+
+PLAYERS.forEach(name => {
+  const pill = document.createElement('div');
+  pill.className = 'name-pill';
+  pill.textContent = name;
+  pill.addEventListener('click', () => {
+    selectedPostName = name;
+    [...postNameGrid.children].forEach(c => c.classList.remove('selected'));
+    pill.classList.add('selected');
+    updatePostSubmit();
+  });
+  postNameGrid.appendChild(pill);
+});
+
+function updatePostSubmit(){
+  const title = document.getElementById('postTitle').value.trim();
+  postSubmit.disabled = !(selectedPostName && title);
+}
+document.getElementById('postTitle').addEventListener('input', updatePostSubmit);
+
+document.getElementById('openPostModal').addEventListener('click', () => {
+  selectedPostName = null;
+  document.getElementById('postTitle').value = '';
+  document.getElementById('postDesc').value = '';
+  [...postNameGrid.children].forEach(c => c.classList.remove('selected'));
+  postSubmit.disabled = true;
+  postOverlay.classList.add('show');
+});
+document.getElementById('postCancel').addEventListener('click', () => postOverlay.classList.remove('show'));
+
+postSubmit.addEventListener('click', async () => {
+  const title = document.getElementById('postTitle').value.trim();
+  const description = document.getElementById('postDesc').value.trim();
+  if(!selectedPostName || !title) return;
+  postSubmit.disabled = true;
+  postSubmit.textContent = 'Posting…';
+  const { error } = await sb.from('jobs').insert({
+    title, description, poster: selectedPostName, status: 'open'
+  });
+  postSubmit.textContent = 'Post job';
+  if(error){ alert('Could not post job: ' + error.message); postSubmit.disabled = false; return; }
+  postOverlay.classList.remove('show');
+  loadJobs();
+});
+
+// ---------- action (claim / assign / done) modal ----------
+const nameOverlay = document.getElementById('nameOverlay');
+const actionNameGrid = document.getElementById('actionNameGrid');
+const nameSubmit = document.getElementById('nameSubmit');
+const nameModalTitle = document.getElementById('nameModalTitle');
+
+PLAYERS.forEach(name => {
+  const pill = document.createElement('div');
+  pill.className = 'name-pill';
+  pill.textContent = name;
+  pill.addEventListener('click', () => {
+    selectedActionName = name;
+    [...actionNameGrid.children].forEach(c => c.classList.remove('selected'));
+    pill.classList.add('selected');
+    nameSubmit.disabled = false;
+  });
+  actionNameGrid.appendChild(pill);
+});
+
+document.getElementById('donePhotoInput').addEventListener('change', (e) => {
+  const files = [...e.target.files];
+  const wrap = document.getElementById('photoPreviewWrap');
+  wrap.innerHTML = '';
+  if(files.length === 0){ wrap.style.display = 'none'; return; }
+  files.forEach(file => {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border);';
+    wrap.appendChild(img);
+  });
+  wrap.style.display = 'flex';
+});
+
+function onActionClick(e){
+  const action = e.currentTarget.dataset.action;
+  const id = e.currentTarget.dataset.id;
+
+  if(action === 'reopen'){
+    reopenJob(id);
+    return;
+  }
+
+  pendingAction = { type: action, jobId: id };
+  selectedActionName = null;
+  [...actionNameGrid.children].forEach(c => c.classList.remove('selected'));
+  nameSubmit.disabled = true;
+
+  nameModalTitle.textContent =
+    action === 'claim' ? 'Claiming this job — who are you?' :
+    action === 'assign' ? 'Assign this job to…' :
+    'Marking done — who are you?';
+
+  const photoField = document.getElementById('photoField');
+  const photoInput = document.getElementById('donePhotoInput');
+  const photoPreviewWrap = document.getElementById('photoPreviewWrap');
+  photoInput.value = '';
+  photoPreviewWrap.innerHTML = '';
+  photoPreviewWrap.style.display = 'none';
+  photoField.style.display = (action === 'done') ? 'block' : 'none';
+
+  nameOverlay.classList.add('show');
+}
+
+document.getElementById('nameCancel').addEventListener('click', () => {
+  nameOverlay.classList.remove('show');
+  pendingAction = null;
+});
+
+nameSubmit.addEventListener('click', async () => {
+  if(!pendingAction || !selectedActionName) return;
+  const { type, jobId } = pendingAction;
+  nameSubmit.disabled = true;
+
+  try {
+    let update = {};
+    if(type === 'claim') update = { status: 'assigned', assignee: selectedActionName };
+    if(type === 'assign') update = { status: 'assigned', assignee: selectedActionName };
+    if(type === 'done') update = { status: 'done', done_by: selectedActionName };
+
+    if(type === 'done'){
+      const files = [...document.getElementById('donePhotoInput').files];
+      if(files.length > 0){
+        nameSubmit.textContent = `Uploading 0/${files.length}…`;
+        const urls = [];
+        for(let i = 0; i < files.length; i++){
+          const file = files[i];
+          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+          const path = `${jobId}-${Date.now()}-${i}.${ext}`;
+          console.log('Uploading', path, file.size, 'bytes', file.type);
+
+          const uploadPromise = sb.storage.from('job-photos').upload(path, file, {
+            contentType: file.type || 'image/jpeg'
+          });
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Upload of "${file.name}" timed out after 20s — check your network connection or the Supabase Storage settings.`)), 20000)
+          );
+          const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]);
+
+          if(uploadError) { console.error('Upload error', uploadError); throw new Error('Upload failed: ' + uploadError.message); }
+          const { data: pub } = sb.storage.from('job-photos').getPublicUrl(path);
+          console.log('Uploaded, public URL:', pub.publicUrl);
+          urls.push(pub.publicUrl);
+          nameSubmit.textContent = `Uploading ${i + 1}/${files.length}…`;
+        }
+        update.photo_urls = urls;
+      }
+    }
+
+    nameSubmit.textContent = 'Saving…';
+    const { error } = await sb.from('jobs').update(update).eq('id', jobId);
+    if(error) throw new Error('Save failed: ' + error.message);
+
+    nameOverlay.classList.remove('show');
+    pendingAction = null;
+    loadJobs();
+  } catch(err) {
+    console.error(err);
+    alert(err.message || 'Something went wrong — check the browser console for details.');
+  } finally {
+    nameSubmit.textContent = 'Confirm';
+    nameSubmit.disabled = false;
+  }
+});
+
+async function reopenJob(id){
+  const { error } = await sb.from('jobs').update({
+    status: 'open', assignee: null, done_by: null, photo_urls: null
+  }).eq('id', id);
+  if(error){ alert('Could not reopen: ' + error.message); return; }
+  loadJobs();
+}
+</script>
+</body>
+</html>
